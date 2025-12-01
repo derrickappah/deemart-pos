@@ -2,26 +2,6 @@
 
 A modern, full-featured Point of Sale (POS) system built with React and Supabase.
 
----
-
-## 💳 Payment Instructions
-
-**Before proceeding with setup, please make payment for the service:**
-
-1. **Make PAYMENT** to: **`0559272762`**
-2. **Network**: **MTN**
-3. **Account Name**: **APPIAH MANASSEH ATTAH**
-4. **Reference**: Use your **USERNAME** as the payment reference
-5. **Send SCREENSHOT** of **PAYMENT** when done
-
-**Important:** Please ensure the following are visible in your payment:
-- **PAYMENT** amount
-- **MTN** network confirmation
-- **USERNAME** as reference
-- **SCREENSHOT** of completed transaction
-
----
-
 ## Features
 
 ### ✅ Completed Modules
