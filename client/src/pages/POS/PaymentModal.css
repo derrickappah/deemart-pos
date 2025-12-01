@@ -1,0 +1,112 @@
+.payment-modal {
+    max-width: 600px;
+}
+
+.payment-form {
+    padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.payment-summary {
+    background-color: var(--bg-main);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: var(--spacing-xs) 0;
+}
+
+.summary-row .amount {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.change-display {
+    background-color: rgba(16, 185, 129, 0.1);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.change-amount {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--success-color);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.split-payments-section {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    background-color: var(--bg-main);
+}
+
+.split-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.split-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+.split-payment-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.split-payment-row select {
+    flex: 1;
+}
+
+.split-payment-row input {
+    flex: 1;
+}
+
+.split-summary {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+}
+
+.text-danger {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+.text-success {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: var(--font-size-sm);
+}
