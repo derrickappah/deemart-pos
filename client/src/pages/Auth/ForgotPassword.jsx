@@ -1,31 +1,27 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { LogIn, Mail, Lock, Eye, EyeOff, Store } from 'lucide-react';
-import { login } from '../../services/authService';
-import { useAuth } from '../../context/AuthContext';
-import './Login.css';
+import { Link } from 'react-router-dom';
+import { Mail, ArrowLeft, Send } from 'lucide-react';
+import { resetPassword } from '../../services/authService';
+import './Login.css'; // Reuse existing styles
 
-const Login = () => {
+const ForgotPassword = () => {
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const navigate = useNavigate();
-    const { checkUser } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setMessage('');
         setLoading(true);
 
-        const result = await login(email, password);
+        const result = await resetPassword(email);
 
         if (result.success) {
-            // Force auth context to refresh
-            window.location.href = '/dashboard';
+            setMessage('Check your email for the password reset link.');
         } else {
-            setError(result.error || 'Login failed. Please check your credentials.');
+            setError(result.error || 'Failed to send reset email. Please try again.');
         }
 
         setLoading(false);
@@ -41,12 +37,12 @@ const Login = () => {
                 </div>
             </div>
 
-            {/* Right Side - Login Form */}
+            {/* Right Side - Form */}
             <div className="login-form-section">
                 <div className="login-form-container">
                     <div className="form-header">
-                        <h2>Welcome Back</h2>
-                        <p>Please enter your details to sign in</p>
+                        <h2>Forgot Password</h2>
+                        <p>Enter your email to receive a reset link</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="login-form">
@@ -58,6 +54,26 @@ const Login = () => {
                                     <path d="M10 14H10.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                                 <span>{error}</span>
+                            </div>
+                        )}
+
+                        {message && (
+                            <div className="success-message" style={{
+                                background: '#ECFDF5',
+                                border: '1px solid #A7F3D0',
+                                color: '#047857',
+                                padding: '12px',
+                                borderRadius: '8px',
+                                fontSize: '14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <path d="M7 10L9 12L13 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                <span>{message}</span>
                             </div>
                         )}
 
@@ -78,38 +94,6 @@ const Login = () => {
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label htmlFor="password">Password</label>
-                            <div className="input-wrapper">
-                                <Lock className="input-icon" size={20} />
-                                <input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="Enter your password"
-                                    required
-                                    autoComplete="current-password"
-                                />
-                                <button
-                                    type="button"
-                                    className="password-toggle"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                >
-                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="form-options">
-                            <label className="remember-me">
-                                <input type="checkbox" />
-                                <span>Remember me</span>
-                            </label>
-                            <Link to="/forgot-password" className="forgot-password">Forgot password?</Link>
-                        </div>
-
                         <button
                             type="submit"
                             className="btn-login"
@@ -118,25 +102,35 @@ const Login = () => {
                             {loading ? (
                                 <>
                                     <span className="spinner"></span>
-                                    Signing in...
+                                    Sending...
                                 </>
                             ) : (
                                 <>
-                                    Sign In
+                                    <Send size={18} />
+                                    Send Reset Link
                                 </>
                             )}
                         </button>
-                    </form>
 
-                    <div className="login-footer">
-                        <p className="demo-note">
-                            <span>Demo Mode: Authentication requires Supabase configuration</span>
-                        </p>
-                    </div>
+                        <div className="form-footer" style={{ textAlign: 'center', marginTop: '16px' }}>
+                            <Link to="/login" className="back-to-login" style={{
+                                color: '#6B7280',
+                                textDecoration: 'none',
+                                fontSize: '14px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontWeight: '500'
+                            }}>
+                                <ArrowLeft size={16} />
+                                Back to Login
+                            </Link>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     );
 };
 
-export default Login;
+export default ForgotPassword;

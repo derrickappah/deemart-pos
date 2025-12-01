@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import Reports from './pages/Reports/Reports';
 import Users from './pages/Users/Users';
 import Login from './pages/Auth/Login';
+import ForgotPassword from './pages/Auth/ForgotPassword';
 import Settings from './pages/Settings/Settings';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -24,6 +25,7 @@ function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Layout />
