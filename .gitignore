@@ -9,6 +9,10 @@ package-lock.json
 .env.test.local
 .env.production.local
 client/.env
+*.env
+
+# Vercel
+.vercel
 
 # Build outputs
 dist/
