@@ -110,3 +110,66 @@
     padding: 6px 12px;
     font-size: var(--font-size-sm);
 }
+
+/* Credit Info Styles */
+.credit-info {
+    margin-top: var(--spacing-sm);
+}
+
+.credit-summary {
+    background-color: var(--bg-main);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.credit-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs) 0;
+    font-size: var(--font-size-sm);
+}
+
+.credit-row span:first-child {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.credit-limit {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.current-balance {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.available-credit {
+    font-weight: 600;
+    color: var(--success-color);
+}
+
+.available-credit.insufficient {
+    color: var(--danger-color);
+}
+
+.sale-amount {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.credit-warning {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--danger-color);
+    border-radius: var(--radius-sm);
+    color: var(--danger-color);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}

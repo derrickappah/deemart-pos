@@ -130,28 +130,114 @@
     text-transform: capitalize;
 }
 
+/* Print wrapper for portal */
+#receipt-print-container {
+    display: none;
+}
+
+#receipt-print-container .receipt-print-wrapper {
+    background: white;
+    padding: 0;
+    margin: 0;
+}
+
 /* Print styles */
 @media print {
-    .receipt-overlay {
-        position: static;
-        background: none;
-    }
-
-    .receipt-container {
-        max-width: none;
-        box-shadow: none;
-        border-radius: 0;
-    }
-
-    .no-print {
+    /* Hide everything except print container */
+    body > *:not(#receipt-print-container) {
         display: none !important;
     }
 
+    /* Show print container */
+    #receipt-print-container {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
+        z-index: 99999 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Hide the regular receipt overlay */
+    .receipt-overlay {
+        display: none !important;
+    }
+
+    /* Ensure receipt container is visible */
+    .receipt-print-wrapper .receipt-container {
+        max-width: 80mm !important;
+        width: 100% !important;
+        margin: 0 auto !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        background: white !important;
+        max-height: none !important;
+        overflow: visible !important;
+        position: relative !important;
+    }
+
+    /* Hide action buttons */
+    .no-print,
+    .receipt-actions {
+        display: none !important;
+    }
+
+    /* Ensure receipt content is visible */
     .receipt-content {
-        padding: 20px;
+        padding: 10mm !important;
+        page-break-inside: avoid;
+        color: black !important;
+    }
+
+    /* Ensure all receipt sections are visible */
+    .receipt-header,
+    .receipt-info,
+    .receipt-items,
+    .receipt-totals,
+    .receipt-payment,
+    .receipt-footer {
+        page-break-inside: avoid;
+        color: black !important;
+    }
+
+    /* Ensure all text elements are visible */
+    .receipt-header h1,
+    .receipt-header p,
+    .info-row,
+    .info-row span,
+    .total-row,
+    .total-row span {
+        color: black !important;
+    }
+
+    /* Ensure table is visible */
+    .receipt-items table {
+        width: 100% !important;
+        color: black !important;
+    }
+
+    .receipt-items th,
+    .receipt-items td {
+        color: black !important;
+    }
+
+    /* Ensure proper print layout */
+    @page {
+        size: 80mm auto;
+        margin: 0;
     }
 
     body {
-        background: white;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    html {
+        background: white !important;
     }
 }

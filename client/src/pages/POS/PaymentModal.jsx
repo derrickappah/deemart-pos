@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { getCustomers } from '../../services/customerService';
+import { useNotification } from '../../context/NotificationContext';
 import './PaymentModal.css';
 
 const PaymentModal = ({ isOpen, onClose, onSubmit, totalAmount, onSaleComplete }) => {
+    const { showToast } = useNotification();
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [amountTendered, setAmountTendered] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState('');
     const [customers, setCustomers] = useState([]);
     const [splitPayments, setSplitPayments] = useState([]);
     const [isSplitPayment, setIsSplitPayment] = useState(false);
+    const [selectedCustomerData, setSelectedCustomerData] = useState(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -37,7 +40,11 @@ const PaymentModal = ({ isOpen, onClose, onSubmit, totalAmount, onSaleComplete }
         e.preventDefault();
 
         if (paymentMethod === 'credit' && !selectedCustomer) {
-            alert('Please select a customer for credit sale');
+            showToast({
+                type: 'error',
+                title: 'Error',
+                message: 'Please select a customer for credit sale'
+            });
             return;
         }
 
@@ -51,14 +58,54 @@ const PaymentModal = ({ isOpen, onClose, onSubmit, totalAmount, onSaleComplete }
                     value: selectedCustomer,
                     stringValue: customerIdStr
                 });
-                alert(`Invalid customer ID: "${selectedCustomer}". Please select a valid customer.`);
+                showToast({
+                    type: 'error',
+                    title: 'Error',
+                    message: `Invalid customer ID: "${selectedCustomer}". Please select a valid customer.`
+                });
                 return;
             }
             validatedCustomerId = parseInt(customerIdStr, 10);
             if (isNaN(validatedCustomerId) || validatedCustomerId <= 0) {
                 console.error('Customer ID is not a valid integer:', selectedCustomer);
-                alert(`Invalid customer ID: "${selectedCustomer}". Please select a valid customer.`);
+                showToast({
+                    type: 'error',
+                    title: 'Error',
+                    message: `Invalid customer ID: "${selectedCustomer}". Please select a valid customer.`
+                });
                 return;
+            }
+
+            // Validate credit limit
+            if (selectedCustomerData) {
+                const creditLimit = parseFloat(selectedCustomerData.credit_limit) || 0;
+                const outstandingBalance = parseFloat(selectedCustomerData.outstanding_balance) || 0;
+                const newBalance = outstandingBalance + totalAmount;
+                const availableCredit = creditLimit - outstandingBalance;
+
+                if (creditLimit > 0 && newBalance > creditLimit) {
+                    showToast({
+                        type: 'error',
+                        title: 'Credit Limit Exceeded',
+                        message: `This sale would exceed ${selectedCustomerData.name}'s credit limit. ` +
+                                `Credit Limit: GHS ${creditLimit.toFixed(2)}, ` +
+                                `Current Balance: GHS ${outstandingBalance.toFixed(2)}, ` +
+                                `Available Credit: GHS ${availableCredit.toFixed(2)}, ` +
+                                `Sale Amount: GHS ${totalAmount.toFixed(2)}`
+                    });
+                    return;
+                }
+
+                if (creditLimit > 0 && availableCredit < totalAmount) {
+                    showToast({
+                        type: 'error',
+                        title: 'Insufficient Credit',
+                        message: `${selectedCustomerData.name} has insufficient available credit. ` +
+                                `Available Credit: GHS ${availableCredit.toFixed(2)}, ` +
+                                `Required: GHS ${totalAmount.toFixed(2)}`
+                    });
+                    return;
+                }
             }
         }
 
@@ -126,21 +173,82 @@ const PaymentModal = ({ isOpen, onClose, onSubmit, totalAmount, onSaleComplete }
                     </div>
 
                     {paymentMethod === 'credit' && (
-                        <div className="form-group">
-                            <label>Select Customer</label>
-                            <select
-                                value={selectedCustomer}
-                                onChange={(e) => setSelectedCustomer(e.target.value)}
-                                required
-                            >
-                                <option value="">-- Select Customer --</option>
-                                {customers.map((customer) => (
-                                    <option key={customer.id} value={customer.id}>
-                                        {customer.name} - Balance: GHS {customer.outstanding_balance?.toFixed(2) || '0.00'}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <>
+                            <div className="form-group">
+                                <label>Select Customer</label>
+                                <select
+                                    value={selectedCustomer}
+                                    onChange={(e) => {
+                                        const customerId = e.target.value;
+                                        setSelectedCustomer(customerId);
+                                        const customer = customers.find(c => c.id === parseInt(customerId, 10));
+                                        setSelectedCustomerData(customer || null);
+                                    }}
+                                    required
+                                >
+                                    <option value="">-- Select Customer --</option>
+                                    {customers.map((customer) => {
+                                        const balance = parseFloat(customer.outstanding_balance) || 0;
+                                        const creditLimit = parseFloat(customer.credit_limit) || 0;
+                                        const availableCredit = creditLimit > 0 ? creditLimit - balance : null;
+                                        return (
+                                            <option key={customer.id} value={customer.id}>
+                                                {customer.name} - 
+                                                Balance: GHS {balance.toFixed(2)}
+                                                {creditLimit > 0 && ` | Limit: GHS ${creditLimit.toFixed(2)}`}
+                                                {availableCredit !== null && ` | Available: GHS ${availableCredit.toFixed(2)}`}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            </div>
+                            {selectedCustomerData && (
+                                <div className="credit-info">
+                                    <div className="credit-summary">
+                                        <div className="credit-row">
+                                            <span>Credit Limit:</span>
+                                            <span className="credit-limit">
+                                                GHS {parseFloat(selectedCustomerData.credit_limit || 0).toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <div className="credit-row">
+                                            <span>Current Balance:</span>
+                                            <span className="current-balance">
+                                                GHS {parseFloat(selectedCustomerData.outstanding_balance || 0).toFixed(2)}
+                                            </span>
+                                        </div>
+                                        {parseFloat(selectedCustomerData.credit_limit || 0) > 0 && (
+                                            <>
+                                                <div className="credit-row">
+                                                    <span>Available Credit:</span>
+                                                    <span className={`available-credit ${
+                                                        (parseFloat(selectedCustomerData.credit_limit || 0) - 
+                                                         parseFloat(selectedCustomerData.outstanding_balance || 0)) < totalAmount 
+                                                        ? 'insufficient' : ''
+                                                    }`}>
+                                                        GHS {(
+                                                            parseFloat(selectedCustomerData.credit_limit || 0) - 
+                                                            parseFloat(selectedCustomerData.outstanding_balance || 0)
+                                                        ).toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <div className="credit-row">
+                                                    <span>Sale Amount:</span>
+                                                    <span className="sale-amount">GHS {totalAmount.toFixed(2)}</span>
+                                                </div>
+                                                {(parseFloat(selectedCustomerData.credit_limit || 0) - 
+                                                  parseFloat(selectedCustomerData.outstanding_balance || 0)) < totalAmount && (
+                                                    <div className="credit-warning">
+                                                        <AlertTriangle size={16} />
+                                                        <span>This sale will exceed the available credit limit!</span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
 
                     {paymentMethod === 'cash' && !isSplitPayment && (

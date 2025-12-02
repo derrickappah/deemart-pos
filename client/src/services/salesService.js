@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { createActivityLog } from './logService';
 
 export const createSale = async (saleData) => {
     // saleData = { 
@@ -35,6 +36,40 @@ export const createSale = async (saleData) => {
             validatedCustomerId = parseInt(customerIdStr, 10);
             if (isNaN(validatedCustomerId) || validatedCustomerId <= 0) {
                 throw new Error(`Invalid customer_id: "${saleData.customer_id}" is not a valid customer ID.`);
+            }
+        }
+
+        // Validate credit limit if this is a credit sale
+        if (saleData.is_credit && validatedCustomerId) {
+            const { data: customer, error: customerError } = await supabase
+                .from('customers')
+                .select('id, name, credit_limit, outstanding_balance')
+                .eq('id', validatedCustomerId)
+                .single();
+
+            if (customerError) {
+                throw new Error(`Failed to fetch customer data: ${customerError.message}`);
+            }
+
+            if (!customer) {
+                throw new Error('Customer not found');
+            }
+
+            const creditLimit = parseFloat(customer.credit_limit) || 0;
+            const outstandingBalance = parseFloat(customer.outstanding_balance) || 0;
+            const newBalance = outstandingBalance + finalAmount;
+
+            // Check if credit limit is set (credit_limit > 0 means limit is enforced)
+            if (creditLimit > 0 && newBalance > creditLimit) {
+                const availableCredit = creditLimit - outstandingBalance;
+                throw new Error(
+                    `Credit limit exceeded for ${customer.name}. ` +
+                    `Credit Limit: GHS ${creditLimit.toFixed(2)}, ` +
+                    `Current Balance: GHS ${outstandingBalance.toFixed(2)}, ` +
+                    `Available Credit: GHS ${availableCredit.toFixed(2)}, ` +
+                    `Sale Amount: GHS ${finalAmount.toFixed(2)}. ` +
+                    `New balance would be: GHS ${newBalance.toFixed(2)}`
+                );
             }
         }
 
@@ -354,6 +389,22 @@ export const createSale = async (saleData) => {
                 // Don't fail the sale if payment records fail
             }
         }
+
+        // Log the sale creation
+        await createActivityLog({
+            actionType: 'sale_create',
+            entityType: 'sale',
+            entityId: sale.id,
+            description: `Sale ${sale.sale_number || sale.id} created - Total: GHS ${finalAmount.toFixed(2)}, Payment: ${saleData.payment_method}${saleData.is_credit ? ' (Credit)' : ''}`,
+            newValues: {
+                sale_number: sale.sale_number,
+                total_amount: finalAmount,
+                payment_method: saleData.payment_method,
+                is_credit: saleData.is_credit || false,
+                customer_id: validatedCustomerId,
+                item_count: saleData.items?.length || 0,
+            },
+        });
 
         return { success: true, sale, data: sale };
 

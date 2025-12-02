@@ -22,7 +22,7 @@ const Settings = () => {
                         <h3><Info size={20} /> About DeeMart POS</h3>
                         <div className="about-content">
                             <p><strong>Version:</strong> 1.0.0</p>
-                            <p><strong>Developed by:</strong> Antigravity AI</p>
+                            <p><strong>Developed by:</strong> Derrick Appah</p>
                             <p><strong>Support:</strong> support@deemart.com</p>
                             <p className="copyright">© 2025 Dee Wholesale Mart. All rights reserved.</p>
                         </div>

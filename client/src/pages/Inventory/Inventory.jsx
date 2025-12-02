@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Filter } from 'lucide-react';
 import { getProducts, getCategories, deleteProduct, addProduct, updateProduct } from '../../services/productService';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import ProductFormModal from './ProductFormModal';
 import './Inventory.css';
 
 const Inventory = () => {
     const { showToast } = useNotification();
+    const { user, isAdmin, isManager } = useAuth();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -87,10 +89,37 @@ const Inventory = () => {
 
     const handleFormSubmit = async (formData) => {
         try {
+            // Check permissions for update/add operations
+            if (editingProduct && !isAdmin && !isManager) {
+                showToast({
+                    type: 'error',
+                    title: 'Permission Denied',
+                    message: 'Only admins and managers can update products. Your role: ' + (user?.role || 'cashier')
+                });
+                return;
+            }
+
+            if (!editingProduct && !isAdmin && !isManager) {
+                showToast({
+                    type: 'error',
+                    title: 'Permission Denied',
+                    message: 'Only admins and managers can add products. Your role: ' + (user?.role || 'cashier')
+                });
+                return;
+            }
+
             let result;
             if (editingProduct) {
-                result = await updateProduct(editingProduct.id, formData);
+                // Ensure we have a valid product ID
+                const productId = editingProduct.id;
+                if (!productId) {
+                    throw new Error('Product ID is missing. Please try again.');
+                }
+                
+                console.log('Updating product:', { productId, formData, userRole: user?.role });
+                result = await updateProduct(productId, formData);
             } else {
+                console.log('Adding product:', formData);
                 result = await addProduct(formData);
             }
 
@@ -101,8 +130,10 @@ const Inventory = () => {
                     message: editingProduct ? 'Product updated successfully' : 'Product added successfully'
                 });
                 setIsModalOpen(false);
+                setEditingProduct(null); // Clear editing state
                 loadData();
             } else {
+                console.error('Operation failed:', result.error);
                 showToast({
                     type: 'error',
                     title: 'Error',
@@ -110,6 +141,7 @@ const Inventory = () => {
                 });
             }
         } catch (err) {
+            console.error('Error in handleFormSubmit:', err);
             showToast({
                 type: 'error',
                 title: 'Error',

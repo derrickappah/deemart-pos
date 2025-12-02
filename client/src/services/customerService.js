@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { createActivityLog } from './logService';
 
 export const getCustomers = async () => {
     try {
@@ -27,6 +28,21 @@ export const addCustomer = async (customerData) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        await createActivityLog({
+            actionType: 'customer_create',
+            entityType: 'customer',
+            entityId: data.id,
+            description: `Customer "${customerData.name}" was created`,
+            newValues: {
+                name: customerData.name,
+                phone: customerData.phone,
+                email: customerData.email,
+                credit_limit: customerData.credit_limit,
+            },
+        });
+
         return { success: true, data };
     } catch (error) {
         console.error('Error adding customer:', error.message);
@@ -36,6 +52,13 @@ export const addCustomer = async (customerData) => {
 
 export const updateCustomer = async (id, customerData) => {
     try {
+        // Get old customer data for logging
+        const { data: oldCustomer } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', id)
+            .single();
+
         const { data, error } = await supabase
             .from('customers')
             .update(customerData)
@@ -44,6 +67,19 @@ export const updateCustomer = async (id, customerData) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        if (oldCustomer) {
+            await createActivityLog({
+                actionType: 'customer_update',
+                entityType: 'customer',
+                entityId: id,
+                description: `Customer "${oldCustomer.name}" was updated`,
+                oldValues: oldCustomer,
+                newValues: customerData,
+            });
+        }
+
         return { success: true, data };
     } catch (error) {
         console.error('Error updating customer:', error.message);
@@ -53,6 +89,13 @@ export const updateCustomer = async (id, customerData) => {
 
 export const deleteCustomer = async (id) => {
     try {
+        // Get customer info before deletion for logging
+        const { data: customer } = await supabase
+            .from('customers')
+            .select('name')
+            .eq('id', id)
+            .single();
+
         // Soft delete by setting is_active to false
         const { error } = await supabase
             .from('customers')
@@ -60,6 +103,19 @@ export const deleteCustomer = async (id) => {
             .eq('id', id);
 
         if (error) throw error;
+
+        // Log the action
+        if (customer) {
+            await createActivityLog({
+                actionType: 'customer_delete',
+                entityType: 'customer',
+                entityId: id,
+                description: `Customer "${customer.name}" was deleted (soft delete)`,
+                oldValues: { name: customer.name, is_active: true },
+                newValues: { is_active: false },
+            });
+        }
+
         return { success: true };
     } catch (error) {
         console.error('Error deleting customer:', error.message);
@@ -69,6 +125,13 @@ export const deleteCustomer = async (id) => {
 
 export const recordCustomerPayment = async (paymentData) => {
     try {
+        // Get customer name for logging
+        const { data: customer } = await supabase
+            .from('customers')
+            .select('name')
+            .eq('id', paymentData.customer_id)
+            .single();
+
         // paymentData = { customer_id, amount, payment_method, sale_id (optional), reference_number (optional), notes (optional) }
         const { data, error } = await supabase
             .from('customer_payments')
@@ -77,6 +140,21 @@ export const recordCustomerPayment = async (paymentData) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        await createActivityLog({
+            actionType: 'payment_create',
+            entityType: 'payment',
+            entityId: data.id,
+            description: `Payment of GHS ${paymentData.amount} recorded for customer "${customer?.name || paymentData.customer_id}" via ${paymentData.payment_method}`,
+            newValues: {
+                customer_id: paymentData.customer_id,
+                amount: paymentData.amount,
+                payment_method: paymentData.payment_method,
+                sale_id: paymentData.sale_id,
+            },
+        });
+
         return { success: true, data };
     } catch (error) {
         console.error('Error recording customer payment:', error.message);

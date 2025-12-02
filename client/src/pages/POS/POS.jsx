@@ -62,8 +62,14 @@ const POS = () => {
                     });
                     return false;
                 }
-                addToCart(product);
-                return true; // Product found
+                const added = await addToCart(product, (errorMsg) => {
+                    showToast({
+                        type: 'warning',
+                        title: 'Insufficient Stock',
+                        message: errorMsg
+                    });
+                });
+                return added; // Product found and added (or stock error)
             }
 
             // Product not found
@@ -84,7 +90,7 @@ const POS = () => {
         }
     };
 
-    const handleProductSelect = (product) => {
+    const handleProductSelect = async (product) => {
         if (product.stock <= 0) {
             showToast({
                 type: 'warning',
@@ -93,7 +99,13 @@ const POS = () => {
             });
             return;
         }
-        addToCart(product);
+        await addToCart(product, (errorMsg) => {
+            showToast({
+                type: 'warning',
+                title: 'Insufficient Stock',
+                message: errorMsg
+            });
+        });
     };
 
     return (

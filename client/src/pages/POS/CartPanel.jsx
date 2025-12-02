@@ -4,11 +4,12 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { createSale } from '../../services/salesService';
+import { supabase } from '../../lib/supabaseClient';
 import PaymentModal from './PaymentModal';
 import Receipt from '../../components/Receipt';
 
 const CartPanel = () => {
-    const { cartItems, total, removeFromCart, updateQuantity, clearCart } = useCart();
+    const { cartItems, total, removeFromCart, updateQuantity, clearCart, stockErrors } = useCart();
     const { user } = useAuth();
     const { showToast } = useNotification();
     const [processing, setProcessing] = useState(false);
@@ -35,10 +36,12 @@ const CartPanel = () => {
         
         // Validate cart items before creating sale
         console.log('Validating cart items before sale:', cartItems);
-        cartItems.forEach((item, index) => {
+        
+        // Validate IDs and check stock availability
+        for (const item of cartItems) {
             if (!item.id) {
                 console.error('Cart item missing ID:', item);
-                throw new Error(`Cart item ${index + 1} (${item.name}) is missing an ID.`);
+                throw new Error(`Cart item "${item.name}" is missing an ID.`);
             }
             
             // Check if ID is a barcode string (contains dashes, letters, etc.)
@@ -59,7 +62,27 @@ const CartPanel = () => {
                 console.error('Cart item ID is not a valid number:', item);
                 throw new Error(`Cart item "${item.name}" has invalid ID: "${item.id}". Expected a positive number.`);
             }
-        });
+
+            // Check stock availability
+            const { data: product, error: stockError } = await supabase
+                .from('products')
+                .select('stock_quantity, name')
+                .eq('id', numericId)
+                .single();
+
+            if (stockError) {
+                console.error('Error checking stock for product:', stockError);
+                throw new Error(`Failed to check stock for "${item.name}". Please try again.`);
+            }
+
+            if (!product) {
+                throw new Error(`Product "${item.name}" not found in database.`);
+            }
+
+            if (product.stock_quantity < item.quantity) {
+                throw new Error(`Insufficient stock for "${item.name}". Available: ${product.stock_quantity}, Requested: ${item.quantity}`);
+            }
+        }
 
         const saleData = {
             cashier_id: user?.id || 'demo-user',
@@ -199,11 +222,23 @@ const CartPanel = () => {
 
                             <div className="item-controls">
                                 <div className="qty-control">
-                                    <button onClick={() => updateQuantity(item.id, -1)}>
+                                    <button onClick={() => updateQuantity(item.id, -1, (errorMsg) => {
+                                        showToast({
+                                            type: 'warning',
+                                            title: 'Insufficient Stock',
+                                            message: errorMsg
+                                        });
+                                    })}>
                                         <Minus size={14} />
                                     </button>
                                     <span>{item.quantity}</span>
-                                    <button onClick={() => updateQuantity(item.id, 1)}>
+                                    <button onClick={() => updateQuantity(item.id, 1, (errorMsg) => {
+                                        showToast({
+                                            type: 'warning',
+                                            title: 'Insufficient Stock',
+                                            message: errorMsg
+                                        });
+                                    })}>
                                         <Plus size={14} />
                                     </button>
                                 </div>
@@ -214,6 +249,16 @@ const CartPanel = () => {
                                     <Trash2 size={16} />
                                 </button>
                             </div>
+                            {stockErrors[item.id] && (
+                                <div className="stock-error">
+                                    {stockErrors[item.id]}
+                                </div>
+                            )}
+                            {item.stock !== undefined && (
+                                <div className="stock-info">
+                                    Stock: {item.stock} available
+                                </div>
+                            )}
                         </div>
                     ))
                 )}

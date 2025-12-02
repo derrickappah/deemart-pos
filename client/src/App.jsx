@@ -11,6 +11,7 @@ import Users from './pages/Users/Users';
 import Login from './pages/Auth/Login';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import Settings from './pages/Settings/Settings';
+import ActivityLogs from './pages/ActivityLogs/ActivityLogs';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -39,6 +40,7 @@ function App() {
                 <Route path="suppliers" element={<Suppliers />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="users" element={<Users />} />
+                <Route path="logs" element={<ActivityLogs />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>

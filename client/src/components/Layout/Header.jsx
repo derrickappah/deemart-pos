@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import { getBranches } from '../../services/branchService';
 import NotificationCenter from '../NotificationCenter';
@@ -121,11 +121,6 @@ const Header = ({ onMenuClick }) => {
             </div>
 
             <div className="header-right">
-                <div className="search-bar">
-                    <Search size={18} className="search-icon" />
-                    <input type="text" placeholder="Search..." />
-                </div>
-
                 <div className="notification-wrapper" style={{ position: 'relative' }}>
                     <button
                         className="icon-btn notification-btn"

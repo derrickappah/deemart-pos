@@ -10,7 +10,8 @@ import {
     Settings,
     UserCog,
     LogOut,
-    User
+    User,
+    FileSearch
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -24,7 +25,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { icon: Users, label: 'Customers', path: '/customers' },
         { icon: Truck, label: 'Suppliers', path: '/suppliers' },
         { icon: FileText, label: 'Reports', path: '/reports' },
-        { icon: Settings, label: 'Settings', path: '/settings' },
+        { icon: FileSearch, label: 'Activity Logs', path: '/logs' },
     ];
 
     const handleNavClick = () => {
@@ -73,6 +74,17 @@ const Sidebar = ({ isOpen, onClose }) => {
                         <span>Users</span>
                     </NavLink>
                 )}
+
+                <NavLink
+                    to="/settings"
+                    className={({ isActive }) =>
+                        `nav-item ${isActive ? 'active' : ''}`
+                    }
+                    onClick={handleNavClick}
+                >
+                    <Settings size={20} />
+                    <span>Settings</span>
+                </NavLink>
             </nav>
 
             <div className="sidebar-footer">

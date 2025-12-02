@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { createActivityLog } from './logService';
 
 export const getProducts = async () => {
     try {
@@ -79,6 +80,23 @@ export const addProduct = async (productData) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        await createActivityLog({
+            actionType: 'product_create',
+            entityType: 'product',
+            entityId: data.id,
+            description: `Product "${productData.name}" was created`,
+            newValues: {
+                name: productData.name,
+                barcode: productData.barcode,
+                retail_price: productData.retail_price,
+                cost_price: productData.cost_price,
+                stock_quantity: productData.stock_quantity,
+                category_id: productData.category_id,
+            },
+        });
+
         return { success: true, data };
     } catch (error) {
         console.error('Error adding product:', error.message);
@@ -88,23 +106,109 @@ export const addProduct = async (productData) => {
 
 export const updateProduct = async (id, productData) => {
     try {
+        // First, validate the ID
+        const productId = typeof id === 'string' ? parseInt(id, 10) : id;
+        if (isNaN(productId) || productId <= 0) {
+            throw new Error(`Invalid product ID: ${id}`);
+        }
+
+        // First, check if product exists and we can read it
+        const { data: existingProduct, error: readError } = await supabase
+            .from('products')
+            .select('id, name')
+            .eq('id', productId)
+            .single();
+
+        if (readError) {
+            if (readError.code === 'PGRST116') {
+                throw new Error(`Product with ID ${productId} not found`);
+            }
+            throw readError;
+        }
+
+        if (!existingProduct) {
+            throw new Error(`Product with ID ${productId} not found`);
+        }
+
+        console.log('Updating product:', { productId, productName: existingProduct.name, productData });
+
+        // Get full product data before update for logging
+        const { data: oldProductData } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', productId)
+            .single();
+
+        // Update the product
         const { data, error } = await supabase
             .from('products')
             .update(productData)
-            .eq('id', id)
-            .select()
-            .single();
+            .eq('id', productId)
+            .select();
 
-        if (error) throw error;
-        return { success: true, data };
+        if (error) {
+            console.error('Supabase update error:', error);
+            // Check if it's a permission error
+            if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('policy')) {
+                throw new Error('You do not have permission to update products. Only admins and managers can update products.');
+            }
+            throw error;
+        }
+
+        // Check if any rows were updated
+        if (!data || data.length === 0) {
+            throw new Error(`Product with ID ${productId} could not be updated. You may not have permission to update products, or the product may have been deleted.`);
+        }
+
+        // Check if stock was updated
+        const stockChanged = oldProductData && 
+            productData.stock_quantity !== undefined && 
+            oldProductData.stock_quantity !== productData.stock_quantity;
+
+        // Log stock update separately if stock changed
+        if (stockChanged) {
+            await createActivityLog({
+                actionType: 'stock_update',
+                entityType: 'stock',
+                entityId: productId,
+                description: `Stock updated for "${existingProduct.name}": ${oldProductData.stock_quantity} → ${productData.stock_quantity}`,
+                oldValues: { stock_quantity: oldProductData.stock_quantity },
+                newValues: { stock_quantity: productData.stock_quantity },
+            });
+        }
+
+        // Log general product update
+        await createActivityLog({
+            actionType: 'product_update',
+            entityType: 'product',
+            entityId: productId,
+            description: `Product "${existingProduct.name}" was updated`,
+            oldValues: oldProductData ? {
+                name: oldProductData.name,
+                retail_price: oldProductData.retail_price,
+                cost_price: oldProductData.cost_price,
+                category_id: oldProductData.category_id,
+            } : {},
+            newValues: productData,
+        });
+
+        // Return the first (and should be only) updated row
+        return { success: true, data: data[0] };
     } catch (error) {
-        console.error('Error updating product:', error.message);
-        return { success: false, error: error.message };
+        console.error('Error updating product:', error);
+        return { success: false, error: error.message || 'Failed to update product' };
     }
 };
 
 export const deleteProduct = async (id) => {
     try {
+        // Get product info before deletion for logging
+        const { data: product, error: fetchError } = await supabase
+            .from('products')
+            .select('name')
+            .eq('id', id)
+            .single();
+
         // Soft delete by setting is_active to false
         const { error } = await supabase
             .from('products')
@@ -112,6 +216,19 @@ export const deleteProduct = async (id) => {
             .eq('id', id);
 
         if (error) throw error;
+
+        // Log the action
+        if (product) {
+            await createActivityLog({
+                actionType: 'product_delete',
+                entityType: 'product',
+                entityId: id,
+                description: `Product "${product.name}" was deleted (soft delete)`,
+                oldValues: { name: product.name, is_active: true },
+                newValues: { is_active: false },
+            });
+        }
+
         return { success: true };
     } catch (error) {
         console.error('Error deleting product:', error.message);
@@ -147,10 +264,19 @@ export const getLowStockItems = async (threshold = null) => {
 
 export const getProductByBarcode = async (barcode) => {
     try {
+        // Trim and normalize barcode
+        const normalizedBarcode = barcode.trim();
+        
+        if (!normalizedBarcode) {
+            return null;
+        }
+
+        console.log('Searching for product by barcode:', normalizedBarcode);
+
         const { data, error } = await supabase
             .from('products')
             .select('*, categories(name)')
-            .eq('barcode', barcode)
+            .eq('barcode', normalizedBarcode)
             .eq('is_active', true)
             .single();
 

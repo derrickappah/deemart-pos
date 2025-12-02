@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { createActivityLog } from './logService';
 
 export const login = async (email, password) => {
     try {
@@ -90,6 +91,19 @@ export const signUp = async (email, password, userData) => {
             await updateUserRole(data.user.id, userData.role);
         }
 
+        // Log the action
+        await createActivityLog({
+            actionType: 'user_create',
+            entityType: 'user',
+            entityId: data.user.id,
+            description: `User "${userData.full_name || email}" was created with role "${userData.role || 'cashier'}"`,
+            newValues: {
+                email: email,
+                full_name: userData.full_name,
+                role: userData.role || 'cashier',
+            },
+        });
+
         return { success: true, user: data.user };
     } catch (error) {
         console.error('Signup error:', error.message);
@@ -99,6 +113,13 @@ export const signUp = async (email, password, userData) => {
 
 export const updateUserRole = async (userId, role) => {
     try {
+        // Get old user data for logging
+        const { data: oldUser } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
         const { data, error } = await supabase
             .from('user_profiles')
             .update({ role, updated_at: new Date().toISOString() })
@@ -107,6 +128,19 @@ export const updateUserRole = async (userId, role) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        if (oldUser) {
+            await createActivityLog({
+                actionType: 'user_update',
+                entityType: 'user',
+                entityId: userId,
+                description: `User "${oldUser.full_name || oldUser.email}" role updated: ${oldUser.role} → ${role}`,
+                oldValues: { role: oldUser.role },
+                newValues: { role: role },
+            });
+        }
+
         return { success: true, data };
     } catch (error) {
         console.error('Update role error:', error.message);
@@ -131,6 +165,13 @@ export const getAllUsers = async () => {
 
 export const updateUserStatus = async (userId, isActive) => {
     try {
+        // Get old user data for logging
+        const { data: oldUser } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
         const { data, error } = await supabase
             .from('user_profiles')
             .update({ is_active: isActive, updated_at: new Date().toISOString() })
@@ -139,6 +180,19 @@ export const updateUserStatus = async (userId, isActive) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        if (oldUser) {
+            await createActivityLog({
+                actionType: 'user_update',
+                entityType: 'user',
+                entityId: userId,
+                description: `User "${oldUser.full_name || oldUser.email}" status updated: ${oldUser.is_active ? 'Active' : 'Inactive'} → ${isActive ? 'Active' : 'Inactive'}`,
+                oldValues: { is_active: oldUser.is_active },
+                newValues: { is_active: isActive },
+            });
+        }
+
         return { success: true, data };
     } catch (error) {
         console.error('Update user status error:', error.message);

@@ -14,9 +14,50 @@ const BarcodeScanner = ({ onProductFound, onProductSelect, onProductNotFound, se
 
     useEffect(() => {
         // Auto-focus the input on mount
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
+        const focusInput = () => {
+            if (inputRef.current && document.activeElement !== inputRef.current) {
+                inputRef.current.focus();
+            }
+        };
+        
+        // Only focus on mount, not on every click
+        focusInput();
+        
+        // Re-focus when clicking on the POS page (but not on modals or interactive elements)
+        const handleClick = (e) => {
+            const target = e.target;
+            
+            // Don't re-focus if clicking on:
+            // - Modals or modal overlays
+            // - Buttons, selects, inputs, or other form elements
+            // - Links or interactive elements
+            // - Elements with data-no-focus attribute
+            if (
+                target.closest('.modal-overlay') ||
+                target.closest('.modal-content') ||
+                target.closest('button') ||
+                target.closest('select') ||
+                target.closest('input') ||
+                target.closest('textarea') ||
+                target.closest('a') ||
+                target.closest('[data-no-focus]') ||
+                target.closest('.payment-modal') ||
+                target.closest('.receipt-overlay')
+            ) {
+                return; // Don't re-focus
+            }
+            
+            // Only re-focus if clicking on the POS page itself
+            if (target.closest('.pos-container') || target.closest('.barcode-scanner')) {
+                setTimeout(focusInput, 100);
+            }
+        };
+        
+        document.addEventListener('click', handleClick);
+        
+        return () => {
+            document.removeEventListener('click', handleClick);
+        };
     }, []);
 
     // Debounced search function
@@ -49,12 +90,22 @@ const BarcodeScanner = ({ onProductFound, onProductSelect, onProductNotFound, se
             clearTimeout(searchTimeoutRef.current);
         }
 
-        // Set new timeout for debounced search
-        if (barcode.trim().length >= 2) {
+        const trimmedBarcode = barcode.trim();
+        
+        // Check if input looks like a barcode (long alphanumeric string without spaces)
+        // If it does, don't trigger name search - wait for Enter key
+        const looksLikeBarcode = /^[a-zA-Z0-9]+$/.test(trimmedBarcode) && 
+                                trimmedBarcode.length >= 8 && 
+                                !trimmedBarcode.includes(' ');
+
+        // Only trigger name search if it doesn't look like a barcode
+        if (!looksLikeBarcode && trimmedBarcode.length >= 2) {
+            // Set new timeout for debounced search
             searchTimeoutRef.current = setTimeout(() => {
-                performSearch(barcode);
+                performSearch(trimmedBarcode);
             }, 300); // 300ms debounce
         } else {
+            // Clear search results for barcode-like input
             setSearchResults([]);
         }
 
@@ -69,6 +120,12 @@ const BarcodeScanner = ({ onProductFound, onProductSelect, onProductNotFound, se
         if (e.key === 'Enter' && barcode.trim()) {
             e.preventDefault();
 
+            // Clear any pending search timeout since we're processing now
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+                searchTimeoutRef.current = null;
+            }
+
             // If there are search results and one is selected, use that
             if (searchResults.length > 0 && selectedIndex >= 0 && selectedIndex < searchResults.length) {
                 if (onProductSelect) {
@@ -82,20 +139,37 @@ const BarcodeScanner = ({ onProductFound, onProductSelect, onProductNotFound, se
                 return;
             }
 
-            // Otherwise, try to find exact match
-            const found = await onProductFound(barcode.trim());
+            // Check if input looks like a barcode (numeric/alphanumeric, no spaces, typically 8+ chars)
+            // Barcodes are usually longer and don't contain spaces
+            const trimmedBarcode = barcode.trim();
+            const looksLikeBarcode = /^[a-zA-Z0-9]+$/.test(trimmedBarcode) && 
+                                    trimmedBarcode.length >= 3 && 
+                                    !trimmedBarcode.includes(' ');
+
+            console.log('Barcode scanner - Enter pressed:', {
+                barcode: trimmedBarcode,
+                looksLikeBarcode,
+                searchResultsCount: searchResults.length
+            });
+
+            // If it looks like a barcode, prioritize barcode search over name search
+            // Otherwise, try to find exact match (which will try barcode first, then name)
+            const found = await onProductFound(trimmedBarcode);
+            
+            console.log('Barcode scanner - Product found:', found);
 
             if (found) {
                 setStatus('success');
                 setBarcode('');
                 setSearchResults([]);
+                setSelectedIndex(-1);
                 if (onSearchChange) {
                     onSearchChange('');
                 }
             } else {
                 setStatus('error');
                 if (onProductNotFound) {
-                    onProductNotFound(barcode.trim());
+                    onProductNotFound(trimmedBarcode);
                 }
             }
 
@@ -124,6 +198,21 @@ const BarcodeScanner = ({ onProductFound, onProductSelect, onProductNotFound, se
         // Notify parent component of search term change for filtering product grid
         if (onSearchChange) {
             onSearchChange(value);
+        }
+
+        // If the value looks like a barcode and is being entered quickly (scanner input),
+        // don't trigger name search immediately - wait for Enter key
+        // This helps distinguish between manual typing and barcode scanning
+        const looksLikeBarcode = /^[a-zA-Z0-9]+$/.test(value.trim()) && 
+                                value.trim().length >= 8 && 
+                                !value.includes(' ');
+        
+        // Only trigger name search if it doesn't look like a barcode or is short
+        if (!looksLikeBarcode && value.trim().length >= 2) {
+            // Name search will be triggered by the debounced useEffect
+        } else if (looksLikeBarcode) {
+            // Clear search results for barcode-like input
+            setSearchResults([]);
         }
     };
 

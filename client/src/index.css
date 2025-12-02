@@ -128,8 +128,14 @@ a {
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background-color: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  background-color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .btn-secondary {
@@ -138,9 +144,14 @@ a {
   border: 1px solid var(--border-color);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background-color: var(--bg-main);
   border-color: var(--text-muted);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Form Styles */
@@ -266,8 +277,27 @@ textarea:focus {
   }
 }
 
-/* Print Styles */
+/* Print Styles - Hide all app content when printing receipt */
 @media print {
+  /* Hide all layout elements when printing */
+  .layout,
+  .sidebar,
+  .header,
+  .main-wrapper,
+  .main-content,
+  .pos-container,
+  .cart-panel,
+  .sidebar-overlay {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Always show receipt overlay when printing */
+  .receipt-overlay {
+    display: flex !important;
+    visibility: visible !important;
+  }
+
   .no-print {
     display: none !important;
   }

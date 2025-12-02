@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { createActivityLog } from './logService';
 
 export const getSuppliers = async () => {
     try {
@@ -27,6 +28,21 @@ export const addSupplier = async (supplierData) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        await createActivityLog({
+            actionType: 'supplier_create',
+            entityType: 'supplier',
+            entityId: data.id,
+            description: `Supplier "${supplierData.name}" was created`,
+            newValues: {
+                name: supplierData.name,
+                contact_person: supplierData.contact_person,
+                phone: supplierData.phone,
+                email: supplierData.email,
+            },
+        });
+
         return { success: true, data };
     } catch (error) {
         console.error('Error adding supplier:', error.message);
@@ -36,6 +52,13 @@ export const addSupplier = async (supplierData) => {
 
 export const updateSupplier = async (id, supplierData) => {
     try {
+        // Get old supplier data for logging
+        const { data: oldSupplier } = await supabase
+            .from('suppliers')
+            .select('*')
+            .eq('id', id)
+            .single();
+
         const { data, error } = await supabase
             .from('suppliers')
             .update(supplierData)
@@ -44,6 +67,19 @@ export const updateSupplier = async (id, supplierData) => {
             .single();
 
         if (error) throw error;
+
+        // Log the action
+        if (oldSupplier) {
+            await createActivityLog({
+                actionType: 'supplier_update',
+                entityType: 'supplier',
+                entityId: id,
+                description: `Supplier "${oldSupplier.name}" was updated`,
+                oldValues: oldSupplier,
+                newValues: supplierData,
+            });
+        }
+
         return { success: true, data };
     } catch (error) {
         console.error('Error updating supplier:', error.message);
@@ -53,6 +89,13 @@ export const updateSupplier = async (id, supplierData) => {
 
 export const deleteSupplier = async (id) => {
     try {
+        // Get supplier info before deletion for logging
+        const { data: supplier } = await supabase
+            .from('suppliers')
+            .select('name')
+            .eq('id', id)
+            .single();
+
         // Soft delete by setting is_active to false
         const { error } = await supabase
             .from('suppliers')
@@ -60,6 +103,19 @@ export const deleteSupplier = async (id) => {
             .eq('id', id);
 
         if (error) throw error;
+
+        // Log the action
+        if (supplier) {
+            await createActivityLog({
+                actionType: 'supplier_delete',
+                entityType: 'supplier',
+                entityId: id,
+                description: `Supplier "${supplier.name}" was deleted (soft delete)`,
+                oldValues: { name: supplier.name, is_active: true },
+                newValues: { is_active: false },
+            });
+        }
+
         return { success: true };
     } catch (error) {
         console.error('Error deleting supplier:', error.message);
