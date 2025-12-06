@@ -1,9 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Mail, Lock, Eye, EyeOff, Store } from 'lucide-react';
 import { login } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import './Login.css';
+
+const motivationalQuotes = [
+    
+    {
+        text: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+        author: "Winston Churchill"
+    },
+    {
+        text: "The only way to do great work is to love what you do.",
+        author: "Steve Jobs"
+    },
+    {
+        text: "Innovation distinguishes between a leader and a follower.",
+        author: "Steve Jobs"
+    },
+    {
+        text: "The future belongs to those who believe in the beauty of their dreams.",
+        author: "Eleanor Roosevelt"
+    },
+    {
+        text: "Don't watch the clock; do what it does. Keep going.",
+        author: "Sam Levenson"
+    },
+    {
+        text: "The way to get started is to quit talking and begin doing.",
+        author: "Walt Disney"
+    },
+    {
+        text: "Excellence is not a skill, it's an attitude.",
+        author: "Ralph Marston"
+    },
+    {
+        text: "Your limitation—it's only your imagination.",
+        author: "Unknown"
+    },
+    {
+        text: "Push yourself, because no one else is going to do it for you.",
+        author: "Unknown"
+    },
+    {
+        text: "Great things never come from comfort zones.",
+        author: "Unknown"
+    },
+    {
+        text: "Dream it. Wish it. Do it.",
+        author: "Unknown"
+    },
+    {
+        text: "Success doesn't just find you. You have to go out and get it.",
+        author: "Unknown"
+    },
+    {
+        text: "The harder you work for something, the greater you'll feel when you achieve it.",
+        author: "Unknown"
+    },
+    {
+        text: "Efficiency is doing things right; effectiveness is doing the right things.",
+        author: "Peter Drucker"
+    },
+    {
+        text: "The best way to predict the future is to create it.",
+        author: "Peter Drucker"
+    }
+];
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -11,8 +75,15 @@ const Login = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [randomQuote, setRandomQuote] = useState(null);
     const navigate = useNavigate();
     const { checkUser } = useAuth();
+
+    useEffect(() => {
+        // Select a random quote on component mount
+        const randomIndex = Math.floor(Math.random() * motivationalQuotes.length);
+        setRandomQuote(motivationalQuotes[randomIndex]);
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -33,12 +104,23 @@ const Login = () => {
 
     return (
         <div className="login-page">
-            {/* Left Side - Branding (Empty as requested) */}
+            {/* Left Side - Branding with Motivational Quote */}
             <div className="login-brand-section">
                 <div className="brand-background-shapes">
                     <div className="shape shape-1"></div>
                     <div className="shape shape-2"></div>
                 </div>
+                {randomQuote && (
+                    <div className="quote-container">
+                        <div className="quote-mark">"</div>
+                        <div className="quote-content">
+                            <p className="quote-text">{randomQuote.text}</p>
+                            <div className="quote-author">
+                                <span className="author-name">— {randomQuote.author}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Right Side - Login Form */}

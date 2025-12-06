@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Comic+Neue:wght@400;700&family=Bubblegum+Sans&display=swap');
+
 .login-page {
     min-height: 100vh;
     display: flex;
@@ -9,11 +11,12 @@
 /* --- Left Side: Branding --- */
 .login-brand-section {
     flex: 1;
-    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    background: #000000;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     padding: 60px;
     color: white;
     overflow: hidden;
@@ -123,6 +126,71 @@
     50% {
         transform: translate(30px, 20px);
     }
+}
+
+/* Quote Display Styles */
+.quote-container {
+    position: relative;
+    z-index: 2;
+    max-width: 600px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.quote-mark {
+    position: absolute;
+    top: -40px;
+    left: -60px;
+    font-size: 300px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.12);
+    line-height: 1;
+    font-family: 'Comic Neue', 'Fredoka One', cursive, sans-serif;
+    font-style: normal;
+    user-select: none;
+    z-index: 0;
+    transform: rotate(-5deg);
+}
+
+.quote-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+}
+
+.quote-text {
+    font-size: 36px;
+    line-height: 1.4;
+    color: #ffffff;
+    margin: 0 0 40px 0;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    font-family: 'Comic Neue', 'Fredoka One', cursive, sans-serif;
+    font-style: normal;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.quote-author {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.author-name {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    font-family: 'Comic Neue', cursive, sans-serif;
+    font-style: italic;
+    text-align: center;
 }
 
 /* --- Right Side: Login Form --- */
@@ -356,6 +424,22 @@
     .brand-features,
     .brand-logo {
         display: none;
+    }
+
+    .quote-mark {
+        font-size: 120px;
+        top: -20px;
+        left: -30px;
+    }
+
+    .quote-text {
+        font-size: 24px;
+        font-weight: 400;
+        margin-bottom: 24px;
+    }
+
+    .quote-author {
+        justify-content: center;
     }
 
     .login-form-section {
