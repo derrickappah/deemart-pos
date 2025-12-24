@@ -124,3 +124,82 @@
 .text-center {
     text-align: center;
 }
+
+.inventory-summary {
+    margin-bottom: var(--spacing-md);
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background-color: var(--bg-card);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    gap: var(--spacing-md);
+}
+
+.summary-item {
+    flex: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.summary-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.summary-value.retail-value {
+    color: var(--success-color);
+}
+
+.summary-value.cost-value {
+    color: var(--info-color);
+}
+
+.summary-value.profit-value {
+    color: var(--primary-color);
+}
+
+.summary-description {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.summary-divider {
+    width: 1px;
+    background-color: var(--border-color);
+    align-self: stretch;
+    margin: 0 var(--spacing-sm);
+}
+
+@media (max-width: 768px) {
+    .summary-card {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .summary-divider {
+        width: 100%;
+        height: 1px;
+        margin: var(--spacing-xs) 0;
+    }
+
+    .summary-value {
+        font-size: var(--font-size-xl);
+    }
+}

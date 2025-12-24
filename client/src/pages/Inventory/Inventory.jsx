@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Edit, Trash2, Filter } from 'lucide-react';
 import { getProducts, getCategories, deleteProduct, addProduct, updateProduct } from '../../services/productService';
 import { useNotification } from '../../context/NotificationContext';
@@ -156,6 +156,26 @@ const Inventory = () => {
         return matchesCategory && matchesSearch;
     });
 
+    // Calculate total inventory values
+    const { totalRetailValue, totalCostValue } = useMemo(() => {
+        const retail = filteredProducts.reduce((sum, product) => {
+            const price = product.price || 0;
+            const stock = product.stock || 0;
+            return sum + (price * stock);
+        }, 0);
+
+        const cost = filteredProducts.reduce((sum, product) => {
+            const costPrice = product.cost_price || 0;
+            const stock = product.stock || 0;
+            return sum + (costPrice * stock);
+        }, 0);
+
+        return {
+            totalRetailValue: retail,
+            totalCostValue: cost
+        };
+    }, [filteredProducts]);
+
     return (
         <div className="inventory-container">
             <div className="inventory-header">
@@ -188,6 +208,35 @@ const Inventory = () => {
                             <option key={cat.id} value={cat.name}>{cat.name}</option>
                         ))}
                     </select>
+                </div>
+            </div>
+
+            {/* Inventory Summary Card */}
+            <div className="inventory-summary">
+                <div className="summary-card">
+                    <div className="summary-item">
+                        <div className="summary-label">Total Retail Value</div>
+                        <div className="summary-value retail-value">
+                            GHS {totalRetailValue.toFixed(2)}
+                        </div>
+                        <div className="summary-description">Value at selling price</div>
+                    </div>
+                    <div className="summary-divider"></div>
+                    <div className="summary-item">
+                        <div className="summary-label">Total Cost Value</div>
+                        <div className="summary-value cost-value">
+                            GHS {totalCostValue.toFixed(2)}
+                        </div>
+                        <div className="summary-description">Value at purchase price</div>
+                    </div>
+                    <div className="summary-divider"></div>
+                    <div className="summary-item">
+                        <div className="summary-label">Potential Profit</div>
+                        <div className="summary-value profit-value">
+                            GHS {(totalRetailValue - totalCostValue).toFixed(2)}
+                        </div>
+                        <div className="summary-description">Retail - Cost</div>
+                    </div>
                 </div>
             </div>
 
