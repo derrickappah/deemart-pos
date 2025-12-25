@@ -12,6 +12,10 @@ const motivationalQuotes = [
         author: "Winston Churchill"
     },
     {
+        text: "Life Happens",
+        author: "Derrick Appah"
+    },
+    {
         text: "The only way to do great work is to love what you do.",
         author: "Steve Jobs"
     },
