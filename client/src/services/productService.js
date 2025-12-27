@@ -421,3 +421,204 @@ export const searchProductsByName = async (name, limit = 10) => {
         throw error; // Re-throw to let caller handle it
     }
 };
+
+// Get all products with full details for export
+export const getAllProductsForExport = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('products')
+            .select('*, categories(name)')
+            .order('name', { ascending: true });
+
+        if (error) throw error;
+
+        return (data || []).map(p => ({
+            id: p.id,
+            name: p.name,
+            barcode: p.barcode || '',
+            sku: p.sku || '',
+            category: p.categories?.name || 'Uncategorized',
+            category_id: p.category_id || '',
+            cost_price: p.cost_price || 0,
+            retail_price: p.retail_price || 0,
+            wholesale_price: p.wholesale_price || 0,
+            stock_quantity: p.stock_quantity || 0,
+            min_stock_level: p.min_stock_level || 10,
+            max_stock_level: p.max_stock_level || '',
+            image_url: p.image_url || '',
+            expiry_date: p.expiry_date || '',
+            supplier_id: p.supplier_id || '',
+            is_active: p.is_active !== false
+        }));
+    } catch (error) {
+        console.error('Error fetching products for export:', error.message);
+        throw error;
+    }
+};
+
+// Bulk import products
+export const bulkImportProducts = async (productsData, options = {}) => {
+    const { skipDuplicates = true, updateExisting = false } = options;
+    const results = {
+        success: 0,
+        failed: 0,
+        skipped: 0,
+        errors: []
+    };
+
+    try {
+        // Get all existing products to check for duplicates
+        let existingProducts = { data: [] };
+        if (skipDuplicates || updateExisting) {
+            const { data, error } = await supabase
+                .from('products')
+                .select('id, name, barcode, sku');
+            if (error) throw error;
+            existingProducts = { data: data || [] };
+        }
+
+        const existingMap = new Map();
+        (existingProducts.data || []).forEach(p => {
+            if (p.barcode) existingMap.set(p.barcode.toLowerCase(), p);
+            if (p.sku) existingMap.set(`sku:${p.sku.toLowerCase()}`, p);
+            existingMap.set(`name:${p.name.toLowerCase()}`, p);
+        });
+
+        // Get all categories to map category names to IDs
+        const { data: categories } = await supabase
+            .from('categories')
+            .select('id, name');
+
+        const categoryMap = new Map();
+        (categories || []).forEach(cat => {
+            categoryMap.set(cat.name.toLowerCase(), cat.id);
+        });
+
+        // Process products in batches
+        const batchSize = 50;
+        for (let i = 0; i < productsData.length; i += batchSize) {
+            const batch = productsData.slice(i, i + batchSize);
+            const productsToInsert = [];
+            const productsToUpdate = [];
+
+            for (const product of batch) {
+                try {
+                    // Normalize and validate product data
+                    const normalizedProduct = {
+                        name: (product.name || product.Name || '').trim(),
+                        barcode: (product.barcode || product.Barcode || '').trim() || null,
+                        sku: (product.sku || product.SKU || '').trim() || null,
+                        retail_price: parseFloat(product.retail_price || product['Retail Price'] || product.price || product.Price || 0) || 0,
+                        cost_price: parseFloat(product.cost_price || product['Cost Price'] || 0) || 0,
+                        wholesale_price: product.wholesale_price || product['Wholesale Price'] ? parseFloat(product.wholesale_price || product['Wholesale Price'] || 0) : null,
+                        stock_quantity: parseInt(product.stock_quantity || product['Stock Quantity'] || product.stock || product.Stock || 0, 10) || 0,
+                        min_stock_level: parseInt(product.min_stock_level || product['Min Stock Level'] || 10, 10) || 10,
+                        max_stock_level: product.max_stock_level || product['Max Stock Level'] ? parseInt(product.max_stock_level || product['Max Stock Level'] || 0, 10) : null,
+                        image_url: (product.image_url || product['Image URL'] || '').trim() || null,
+                        expiry_date: product.expiry_date || product['Expiry Date'] || null,
+                        supplier_id: product.supplier_id || product['Supplier ID'] ? parseInt(product.supplier_id || product['Supplier ID'] || 0, 10) : null,
+                        is_active: product.is_active !== undefined ? product.is_active : true
+                    };
+
+                    // Validate required fields
+                    if (!normalizedProduct.name) {
+                        results.failed++;
+                        results.errors.push({ row: i + 1, error: 'Product name is required' });
+                        continue;
+                    }
+
+                    // Handle category
+                    const categoryName = (product.category || product.Category || '').trim();
+                    if (categoryName) {
+                        const categoryId = categoryMap.get(categoryName.toLowerCase());
+                        if (categoryId) {
+                            normalizedProduct.category_id = categoryId;
+                        } else {
+                            // Category not found - could create it or leave null
+                            normalizedProduct.category_id = null;
+                        }
+                    }
+
+                    // Check for duplicates
+                    const barcodeKey = normalizedProduct.barcode ? normalizedProduct.barcode.toLowerCase() : null;
+                    const skuKey = normalizedProduct.sku ? `sku:${normalizedProduct.sku.toLowerCase()}` : null;
+                    const nameKey = `name:${normalizedProduct.name.toLowerCase()}`;
+                    
+                    const existing = existingMap.get(barcodeKey) || 
+                                   existingMap.get(skuKey) || 
+                                   existingMap.get(nameKey);
+
+                    if (existing) {
+                        if (updateExisting) {
+                            // Update existing product
+                            productsToUpdate.push({ id: existing.id, ...normalizedProduct });
+                        } else {
+                            results.skipped++;
+                            results.errors.push({ 
+                                row: i + 1, 
+                                product: normalizedProduct.name,
+                                error: 'Product already exists (duplicate)' 
+                            });
+                            continue;
+                        }
+                    } else {
+                        productsToInsert.push(normalizedProduct);
+                    }
+                } catch (err) {
+                    results.failed++;
+                    results.errors.push({ 
+                        row: i + 1, 
+                        product: product.name || 'Unknown',
+                        error: err.message || 'Invalid product data' 
+                    });
+                }
+            }
+
+            // Insert new products
+            if (productsToInsert.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('products')
+                    .insert(productsToInsert);
+
+                if (insertError) {
+                    results.failed += productsToInsert.length;
+                    results.errors.push({ 
+                        error: `Batch insert failed: ${insertError.message}` 
+                    });
+                } else {
+                    results.success += productsToInsert.length;
+                    
+                    // Log bulk import
+                    await createActivityLog({
+                        actionType: 'bulk_import',
+                        entityType: 'product',
+                        description: `Bulk imported ${productsToInsert.length} products`,
+                        newValues: { count: productsToInsert.length }
+                    });
+                }
+            }
+
+            // Update existing products
+            if (productsToUpdate.length > 0) {
+                for (const product of productsToUpdate) {
+                    const { id, ...updateData } = product;
+                    const result = await updateProduct(id, updateData);
+                    if (result.success) {
+                        results.success++;
+                    } else {
+                        results.failed++;
+                        results.errors.push({ 
+                            product: product.name,
+                            error: result.error || 'Update failed' 
+                        });
+                    }
+                }
+            }
+        }
+
+        return results;
+    } catch (error) {
+        console.error('Error in bulk import:', error);
+        throw error;
+    }
+};

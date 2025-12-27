@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit, Trash2, Filter } from 'lucide-react';
-import { getProducts, getCategories, deleteProduct, addProduct, updateProduct } from '../../services/productService';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Plus, Edit, Trash2, Filter, Download, Upload } from 'lucide-react';
+import { getProducts, getCategories, deleteProduct, addProduct, updateProduct, getAllProductsForExport, bulkImportProducts } from '../../services/productService';
 import { useNotification } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import ProductFormModal from './ProductFormModal';
+import { exportToCSV, exportToJSON, parseCSV, parseJSON } from '../../utils/exportUtils';
 import './Inventory.css';
 
 const Inventory = () => {
@@ -19,6 +20,11 @@ const Inventory = () => {
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    
+    // Import/Export State
+    const [isImporting, setIsImporting] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         loadData();
@@ -176,15 +182,218 @@ const Inventory = () => {
         };
     }, [filteredProducts]);
 
+    const handleExportInventory = async (format = 'csv') => {
+        if (!isAdmin && !isManager) {
+            showToast({
+                type: 'error',
+                title: 'Permission Denied',
+                message: 'Only admins and managers can export inventory'
+            });
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const products = await getAllProductsForExport();
+            
+            if (products.length === 0) {
+                showToast({
+                    type: 'warning',
+                    title: 'No Data',
+                    message: 'No products to export'
+                });
+                return;
+            }
+
+            // Format data for export
+            const exportData = products.map(p => ({
+                Name: p.name,
+                Barcode: p.barcode || '',
+                SKU: p.sku || '',
+                Category: p.category,
+                'Cost Price': p.cost_price,
+                'Retail Price': p.retail_price,
+                'Wholesale Price': p.wholesale_price || '',
+                'Stock Quantity': p.stock_quantity,
+                'Min Stock Level': p.min_stock_level,
+                'Max Stock Level': p.max_stock_level || '',
+                'Image URL': p.image_url || '',
+                'Expiry Date': p.expiry_date || '',
+                'Supplier ID': p.supplier_id || '',
+                'Is Active': p.is_active
+            }));
+
+            const timestamp = new Date().toISOString().split('T')[0];
+            if (format === 'json') {
+                exportToJSON(exportData, `inventory_export_${timestamp}.json`);
+            } else {
+                exportToCSV(exportData, `inventory_export_${timestamp}.csv`);
+            }
+
+            showToast({
+                type: 'success',
+                title: 'Export Successful',
+                message: `Exported ${products.length} products to ${format.toUpperCase()}`
+            });
+        } catch (err) {
+            console.error('Error exporting inventory:', err);
+            showToast({
+                type: 'error',
+                title: 'Export Failed',
+                message: err.message || 'Failed to export inventory'
+            });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleImportClick = () => {
+        if (!isAdmin && !isManager) {
+            showToast({
+                type: 'error',
+                title: 'Permission Denied',
+                message: 'Only admins and managers can import inventory'
+            });
+            return;
+        }
+        fileInputRef.current?.click();
+    };
+
+    const handleFileImport = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+        try {
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            const fileText = await file.text();
+
+            let productsData;
+            if (fileExtension === 'json') {
+                productsData = parseJSON(fileText);
+            } else if (fileExtension === 'csv') {
+                productsData = parseCSV(fileText);
+            } else {
+                throw new Error('Unsupported file format. Please use CSV or JSON.');
+            }
+
+            if (!productsData || productsData.length === 0) {
+                throw new Error('File is empty or contains no valid data');
+            }
+
+            // Confirm import
+            const confirmMessage = `Are you sure you want to import ${productsData.length} products?\n\n` +
+                'Options:\n' +
+                '- Click OK to skip duplicates\n' +
+                '- Click Cancel to abort';
+            
+            if (!window.confirm(confirmMessage)) {
+                return;
+            }
+
+            // Show update option
+            const updateExisting = window.confirm(
+                'Do you want to update existing products if they are found?\n\n' +
+                'Click OK to update existing products\n' +
+                'Click Cancel to skip duplicates'
+            );
+
+            const result = await bulkImportProducts(productsData, {
+                skipDuplicates: true,
+                updateExisting: updateExisting
+            });
+
+            // Show results
+            let message = `Import completed!\n\n` +
+                `✓ Successfully imported/updated: ${result.success}\n` +
+                `✗ Failed: ${result.failed}\n` +
+                `⊘ Skipped: ${result.skipped}`;
+
+            if (result.errors.length > 0 && result.errors.length <= 10) {
+                message += '\n\nErrors:\n' + result.errors
+                    .slice(0, 10)
+                    .map(e => `- ${e.product || 'Row ' + e.row}: ${e.error}`)
+                    .join('\n');
+            } else if (result.errors.length > 10) {
+                message += `\n\n(${result.errors.length} errors - check console for details)`;
+            }
+
+            showToast({
+                type: result.failed === 0 ? 'success' : 'warning',
+                title: 'Import Complete',
+                message: message
+            });
+
+            // Reload inventory
+            if (result.success > 0) {
+                await loadData();
+            }
+
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        } catch (err) {
+            console.error('Error importing inventory:', err);
+            showToast({
+                type: 'error',
+                title: 'Import Failed',
+                message: err.message || 'Failed to import inventory'
+            });
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
     return (
         <div className="inventory-container">
             <div className="inventory-header">
                 <h1>Inventory Management</h1>
-                <button className="btn btn-primary" onClick={handleAddClick}>
-                    <Plus size={18} style={{ marginRight: '8px' }} />
-                    Add Product
-                </button>
+                <div className="header-actions">
+                    <button 
+                        className="btn btn-secondary" 
+                        onClick={handleImportClick}
+                        disabled={isImporting || loading}
+                        title="Import inventory from CSV or JSON file"
+                    >
+                        <Upload size={18} style={{ marginRight: '8px' }} />
+                        {isImporting ? 'Importing...' : 'Import'}
+                    </button>
+                    <div className="export-dropdown">
+                        <button 
+                            className="btn btn-secondary" 
+                            onClick={() => handleExportInventory('csv')}
+                            disabled={isExporting || loading}
+                            title="Export inventory to CSV"
+                        >
+                            <Download size={18} style={{ marginRight: '8px' }} />
+                            {isExporting ? 'Exporting...' : 'Export CSV'}
+                        </button>
+                        <button 
+                            className="btn btn-secondary" 
+                            onClick={() => handleExportInventory('json')}
+                            disabled={isExporting || loading}
+                            title="Export inventory to JSON"
+                            style={{ marginLeft: '8px' }}
+                        >
+                            <Download size={18} style={{ marginRight: '8px' }} />
+                            {isExporting ? 'Exporting...' : 'Export JSON'}
+                        </button>
+                    </div>
+                    <button className="btn btn-primary" onClick={handleAddClick}>
+                        <Plus size={18} style={{ marginRight: '8px' }} />
+                        Add Product
+                    </button>
+                </div>
             </div>
+            
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.json"
+                onChange={handleFileImport}
+                style={{ display: 'none' }}
+            />
 
             <div className="inventory-controls">
                 <div className="search-bar">

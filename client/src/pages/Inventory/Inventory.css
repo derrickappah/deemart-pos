@@ -9,11 +9,26 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
 }
 
 .inventory-header h1 {
     font-size: var(--font-size-2xl);
     font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.export-dropdown {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
 }
 
 .inventory-controls {
